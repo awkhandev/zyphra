@@ -661,7 +661,11 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <UpstreamKeyCard workspace={workspace} totalUsage={workspaceTotal} />
+        <UpstreamKeyCard
+          workspace={workspace}
+          totalUsage={workspaceTotal}
+          keys={keys}
+        />
 
         {workspace && <UsageChart workspaceId={workspace.id} />}
         {workspace && <CacheSavingsCard workspaceId={workspace.id} />}
