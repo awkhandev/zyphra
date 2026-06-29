@@ -1,0 +1,95 @@
+name: Uptime Monitor
+
+"on":
+  schedule:
+    # Every 5 minutes, every hour, every day
+    - cron: "*/5 * * * *"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check health endpoint
+        id: health
+        run: |
+          echo "Checking https://zyphra.vercel.app/api/health ..."
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            --max-time 30 \
+            "https://zyphra.vercel.app/api/health")
+
+          echo "HTTP Status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Health check passed"
+            cat /tmp/response.json | python3 -m json.tool || cat /tmp/response.json
+            echo "status=ok" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Health check failed (HTTP $HTTP_CODE)"
+            cat /tmp/response.json
+            echo "status=fail" >> $GITHUB_OUTPUT
+            echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create incident issue on failure
+        if: steps.health.outputs.status == 'fail'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'incident',
+              per_page: 1
+            });
+
+            // Don't create duplicate issues if one's already open
+            if (issues.length > 0) {
+              console.log('Incident issue already open — skipping');
+              return;
+            }
+
+            const httpCode = '${{ steps.health.outputs.http_code }}';
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Incident: Health check failed (HTTP ${httpCode})`,
+              body: `## Uptime Monitor Alert\n\n` +
+                    `**Time:** ${new Date().toISOString()}\n` +
+                    `**HTTP Status:** ${httpCode}\n` +
+                    `**URL:** https://zyphra.vercel.app/api/health\n\n` +
+                    `### What to check\n` +
+                    `1. Is the Vercel deployment healthy?\n` +
+                    `2. Is Supabase reachable?\n` +
+                    `3. Check Vercel function logs\n\n` +
+                    `---\n` +
+                    `*This issue was auto-created by the uptime monitor.*`,
+              labels: ['incident']
+            });
+
+      - name: Close incident on recovery
+        if: steps.health.outputs.status == 'ok'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'incident',
+              per_page: 10
+            });
+
+            for (const issue of issues) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed'
+              });
+              console.log(`Closed incident #${issue.number}`);
+            }

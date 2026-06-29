@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  body {
+    background-color: #0A0A0B;
+    color: #F0F0F4;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  ::selection { background: #6366F1; color: white; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #111113; }
+  ::-webkit-scrollbar-thumb { background: #1E1E24; border-radius: 3px; }
+}
+
+@layer components {
+  .mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+
+  .card {
+    background: #111113;
+    border: 1px solid #1E1E24;
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+
+  .btn-primary {
+    background: #6366F1;
+    color: white;
+    font-weight: 500;
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 7px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-primary:hover { background: #4F46E5; }
+
+  .btn-ghost {
+    background: transparent;
+    color: #9898A6;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #1E1E24;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-ghost:hover { color: #F0F0F4; border-color: #56565F; }
+
+  .input {
+    background: #18181C;
+    border: 1px solid #1E1E24;
+    border-radius: 7px;
+    color: #F0F0F4;
+    font-size: 14px;
+    padding: 9px 12px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input:focus { border-color: #6366F1; }
+  .input::placeholder { color: #56565F; }
+
+  .badge-active {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  .badge-inactive {
+    background: rgba(239, 68, 68, 0.12);
+    color: #EF4444;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  .stat-card {
+    background: #111113;
+    border: 1px solid #1E1E24;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+  }
+
+  .docs-sidebar-link:hover {
+    color: #F0F0F4;
+    background: #18181C;
+  }
+}
