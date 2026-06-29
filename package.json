@@ -35,7 +35,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.0.1",
     "eslint": "^8",
-    "eslint-config-next": "14.2.35",
+    "eslint-config-next": "16.2.9",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "msw": "^2.14.6",
