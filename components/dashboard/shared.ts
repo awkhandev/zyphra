@@ -1,7 +1,13 @@
 import React from "react";
 
 // ── Shared types ──────────────────────────────────────────────────────────────
-export type Workspace = { id: string; name: string; plan: string };
+export type Workspace = {
+  id: string;
+  name: string;
+  plan: string;
+  anthropic_key_enc?: string | null;
+  openai_key_enc?: string | null;
+};
 export type KeySummary = {
   sub_key_id: string;
   label: string;

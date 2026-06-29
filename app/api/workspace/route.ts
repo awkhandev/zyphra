@@ -116,7 +116,9 @@ export async function GET() {
     // multiple workspace rows exist from previous test attempts
     const { data: rows } = await serviceSupabase
       .from("workspaces")
-      .select("id, name, plan, monthly_budget_usd, created_at")
+      .select(
+        "id, name, plan, monthly_budget_usd, created_at, anthropic_key_enc, openai_key_enc",
+      )
       .eq("owner_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1);
@@ -127,7 +129,9 @@ export async function GET() {
       // Check if member of another workspace
       const { data: members } = await serviceSupabase
         .from("workspace_members")
-        .select("role, workspaces(id, name, plan)")
+        .select(
+          "role, workspaces(id, name, plan, anthropic_key_enc, openai_key_enc)",
+        )
         .eq("user_id", user.id)
         .limit(1);
 

@@ -23,6 +23,7 @@ import { SetupWizard } from "@/components/dashboard/SetupWizard";
 import { UsageChart } from "@/components/dashboard/UsageChart";
 import { OpenAIKeySection } from "@/components/dashboard/OpenAIKeySection";
 import { InviteSection } from "@/components/dashboard/InviteSection";
+import { UpstreamKeyCard } from "@/components/dashboard/UpstreamKeyCard";
 import { CacheSavingsCard } from "@/components/dashboard/CacheSavingsCard";
 import { SmartRoutingCard } from "@/components/dashboard/SmartRoutingCard";
 import { KeyPoolSection } from "@/components/dashboard/KeyPoolSection";
@@ -33,6 +34,13 @@ export default function DashboardPage() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [keys, setKeys] = useState<KeySummary[]>([]);
   const [totals, setTotals] = useState<Totals | null>(null);
+  const [workspaceTotal, setWorkspaceTotal] = useState<{
+    totalRequests: number;
+    totalTokens: number;
+    totalCostUsd: number;
+    cachedRequests: number;
+    liveRequests: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -45,6 +53,7 @@ export default function DashboardPage() {
     const data = await res.json();
     setKeys(data.summary ?? []);
     setTotals(data.totals ?? null);
+    setWorkspaceTotal(data.workspaceTotal ?? null);
   }, []);
 
   useEffect(() => {
@@ -651,6 +660,8 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        <UpstreamKeyCard workspace={workspace} totalUsage={workspaceTotal} />
 
         {workspace && <UsageChart workspaceId={workspace.id} />}
         {workspace && <CacheSavingsCard workspaceId={workspace.id} />}
