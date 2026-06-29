@@ -72,8 +72,9 @@ export default function AcceptInvitePage() {
       }
     }
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* eslint-disable react-hooks/exhaustive-deps */
   }, [token]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   async function acceptInvite(
     userId: string,

@@ -20,10 +20,11 @@ export function InviteSection({ workspaceId }: { workspaceId: string }) {
     msg: string;
   } | null>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  /* eslint-disable react-hooks/exhaustive-deps */
   React.useEffect(() => {
     loadInvites();
   }, [workspaceId]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   async function loadInvites() {
     const res = await fetch(`/api/invites?workspaceId=${workspaceId}`);
