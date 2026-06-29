@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { s, fmt } from "./shared";
+import { s, fmt, fmtT } from "./shared";
 
 type KeyUsage = {
   label: string;
@@ -9,6 +9,8 @@ type KeyUsage = {
   request_count: number;
   total_tokens: number;
   is_active: boolean;
+  monthly_budget_usd: number | null;
+  daily_requests: number;
 };
 
 type WorkspaceData = {
@@ -16,6 +18,7 @@ type WorkspaceData = {
   plan?: string;
   anthropic_key_enc?: string | null;
   openai_key_enc?: string | null;
+  monthly_budget_usd?: number | null;
 };
 
 type TotalUsage = {
@@ -24,6 +27,16 @@ type TotalUsage = {
   totalCostUsd: number;
   cachedRequests: number;
   liveRequests: number;
+};
+
+const PLAN_LIMITS: Record<
+  string,
+  { cost: number | null; tokens: number | null; requests: number | null }
+> = {
+  free: { cost: 5, tokens: 500_000, requests: 500 },
+  starter: { cost: 50, tokens: 5_000_000, requests: 5_000 },
+  team: { cost: 200, tokens: 20_000_000, requests: 50_000 },
+  business: { cost: null, tokens: null, requests: null },
 };
 
 const SEGMENT_COLORS = [
@@ -40,12 +53,32 @@ const SEGMENT_COLORS = [
 ];
 
 function ProgressTooltip({
-  keys,
+  subKey,
   totalCost,
+  budget,
 }: {
-  keys: KeyUsage[];
+  subKey: KeyUsage;
   totalCost: number;
+  budget: {
+    cost: number | null;
+    tokens: number | null;
+    requests: number | null;
+  };
 }) {
+  const k = subKey;
+  const costPct =
+    budget.cost != null && budget.cost > 0
+      ? (k.cost_usd / budget.cost) * 100
+      : null;
+  const tokPct =
+    budget.tokens != null && budget.tokens > 0
+      ? (k.total_tokens / budget.tokens) * 100
+      : null;
+  const reqPct =
+    budget.requests != null && budget.requests > 0
+      ? (k.request_count / budget.requests) * 100
+      : null;
+
   return (
     <div
       style={{
@@ -53,119 +86,139 @@ function ProgressTooltip({
         border: "1px solid #2A2A32",
         borderRadius: 10,
         padding: "14px 18px",
-        minWidth: 320,
+        minWidth: 260,
         boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
       }}
     >
-      <p
+      <div
         style={{
-          margin: "0 0 10px",
-          fontSize: 11,
-          fontWeight: 600,
-          color: "#9898A6",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 10,
         }}
       >
-        Sub-key breakdown
-      </p>
-      {keys
-        .filter((k) => k.cost_usd > 0 || k.request_count > 0)
-        .sort((a, b) => b.cost_usd - a.cost_usd)
-        .map((k, i) => {
-          const pct = totalCost > 0 ? (k.cost_usd / totalCost) * 100 : 0;
-          return (
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#F0F0F4" }}>
+          {k.label}
+        </span>
+        <span
+          style={{ fontSize: 11, color: "#56565F", fontFamily: "monospace" }}
+        >
+          {k.key_prefix}…
+        </span>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <TooltipRow
+          label="Cost"
+          value={`$${fmt(k.cost_usd, 4)}`}
+          limit={budget.cost != null ? `$${fmt(budget.cost, 2)}/mo` : null}
+          pct={costPct}
+        />
+        <TooltipRow
+          label="Tokens"
+          value={fmtT(k.total_tokens)}
+          limit={budget.tokens != null ? `${fmtT(budget.tokens)}/mo` : null}
+          pct={tokPct}
+        />
+        <TooltipRow
+          label="Requests"
+          value={k.request_count.toLocaleString()}
+          limit={
+            budget.requests != null
+              ? `${budget.requests.toLocaleString()}/mo`
+              : null
+          }
+          pct={reqPct}
+        />
+        {k.daily_requests > 0 && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 12,
+              color: "#9898A6",
+            }}
+          >
+            <span>Today</span>
+            <span style={{ fontFamily: "monospace", color: "#F0F0F4" }}>
+              {k.daily_requests.toLocaleString()} req
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TooltipRow({
+  label,
+  value,
+  limit,
+  pct,
+}: {
+  label: string;
+  value: string;
+  limit: string | null;
+  pct: number | null;
+}) {
+  const barColor =
+    pct != null
+      ? pct > 90
+        ? "#EF4444"
+        : pct > 70
+          ? "#F59E0B"
+          : "#10B981"
+      : "#6366F1";
+
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 12,
+          marginBottom: 3,
+        }}
+      >
+        <span style={{ color: "#9898A6" }}>{label}</span>
+        <span style={{ fontFamily: "monospace", color: "#F0F0F4" }}>
+          {value}
+          {limit && <span style={{ color: "#56565F" }}> / {limit}</span>}
+        </span>
+      </div>
+      {pct != null && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div
+            style={{
+              flex: 1,
+              height: 4,
+              borderRadius: 2,
+              background: "#1E1E24",
+            }}
+          >
             <div
-              key={k.key_prefix}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "6px 0",
-                borderTop: i === 0 ? "none" : "1px solid #2A2A32",
+                width: `${Math.min(pct, 100)}%`,
+                height: "100%",
+                borderRadius: 2,
+                background: barColor,
+                transition: "width 0.2s",
               }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 2,
-                  background: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
-                  flexShrink: 0,
-                }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "#F0F0F4",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {k.label}
-                </p>
-                <p
-                  style={{
-                    margin: "1px 0 0",
-                    fontSize: 11,
-                    color: "#56565F",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {k.key_prefix}…
-                </p>
-              </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "#F0F0F4",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  ${fmt(k.cost_usd, 4)}
-                </p>
-                <p
-                  style={{
-                    margin: "1px 0 0",
-                    fontSize: 11,
-                    color: "#56565F",
-                  }}
-                >
-                  {k.request_count.toLocaleString()} req ·{" "}
-                  {k.total_tokens >= 1_000_000
-                    ? `${(k.total_tokens / 1_000_000).toFixed(1)}M`
-                    : k.total_tokens >= 1_000
-                      ? `${(k.total_tokens / 1_000).toFixed(0)}k`
-                      : k.total_tokens}{" "}
-                  tok
-                </p>
-              </div>
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "#56565F",
-                  flexShrink: 0,
-                  minWidth: 38,
-                  textAlign: "right",
-                }}
-              >
-                {pct.toFixed(1)}%
-              </span>
-            </div>
-          );
-        })}
-      {keys.filter((k) => k.cost_usd > 0 || k.request_count > 0).length ===
-        0 && (
-        <p style={{ margin: "4px 0 0", fontSize: 12, color: "#56565F" }}>
-          No usage recorded yet
-        </p>
+            />
+          </div>
+          <span
+            style={{
+              fontSize: 10,
+              color: "#56565F",
+              fontFamily: "monospace",
+              minWidth: 32,
+              textAlign: "right",
+            }}
+          >
+            {pct.toFixed(1)}%
+          </span>
+        </div>
       )}
     </div>
   );
@@ -201,16 +254,37 @@ export function UpstreamKeyCard({
   const cachedReqs = totalUsage?.cachedRequests ?? 0;
   const liveReqs = totalUsage?.liveRequests ?? 0;
 
+  // Resolve budget limits: workspace-level override > plan defaults
+  const plan = workspace?.plan ?? "free";
+  const planLimits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+  const budgetCost = workspace?.monthly_budget_usd ?? planLimits.cost;
+  const budgetTokens = planLimits.tokens;
+  const budgetRequests = planLimits.requests;
+
   // Build progress segments from active keys with usage
   const activeKeys = keys.filter((k) => k.is_active);
   const segments = activeKeys
     .filter((k) => k.cost_usd > 0 || k.request_count > 0)
     .sort((a, b) => b.cost_usd - a.cost_usd);
 
-  // Keys with 0 usage fill the remaining space proportionally
+  // Keys with 0 usage fill the remaining space
   const zeroKeys = activeKeys.filter(
     (k) => k.cost_usd === 0 && k.request_count === 0,
   );
+
+  // Overall usage percentages
+  const costPct =
+    budgetCost != null && budgetCost > 0
+      ? (totalCost / budgetCost) * 100
+      : null;
+  const tokPct =
+    budgetTokens != null && budgetTokens > 0
+      ? (totalTok / budgetTokens) * 100
+      : null;
+  const reqPct =
+    budgetRequests != null && budgetRequests > 0
+      ? (totalReqs / budgetRequests) * 100
+      : null;
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!barRef.current) return;
@@ -251,9 +325,44 @@ export function UpstreamKeyCard({
         </div>
       </div>
 
+      {/* ── Usage vs Limits ─────────────────────────────────────────── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
+        <UsageLimitPill
+          label="Cost"
+          used={totalCost}
+          limit={budgetCost}
+          formatUsed={(v) => `$${fmt(v, 4)}`}
+          formatLimit={(v) => `$${fmt(v, 2)}/mo`}
+          pct={costPct}
+        />
+        <UsageLimitPill
+          label="Tokens"
+          used={totalTok}
+          limit={budgetTokens}
+          formatUsed={(v) => fmtT(v)}
+          formatLimit={(v) => `${fmtT(v)}/mo`}
+          pct={tokPct}
+        />
+        <UsageLimitPill
+          label="Requests"
+          used={totalReqs}
+          limit={budgetRequests}
+          formatUsed={(v) => v.toLocaleString()}
+          formatLimit={(v) => `${v.toLocaleString()}/mo`}
+          pct={reqPct}
+        />
+      </div>
+
       {/* ── Progress Bar ─────────────────────────────────────────────── */}
       {totalReqs > 0 && (
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: 14, position: "relative" }}>
           <div
             ref={barRef}
             onMouseMove={handleMouseMove}
@@ -265,12 +374,11 @@ export function UpstreamKeyCard({
               overflow: "hidden",
               background: "#18181C",
               cursor: "default",
-              position: "relative",
             }}
           >
             {segments.map((k, i) => {
               const pct = totalCost > 0 ? (k.cost_usd / totalCost) * 100 : 0;
-              if (pct < 0.3) return null; // skip micro segments
+              if (pct < 0.3) return null;
               return (
                 <div
                   key={k.key_prefix}
@@ -306,63 +414,63 @@ export function UpstreamKeyCard({
             <div
               style={{
                 position: "absolute",
-                left: Math.min(tooltipPos.x, 600),
-                top: tooltipPos.y - 12,
+                left: Math.max(140, Math.min(tooltipPos.x, 500)),
+                top: tooltipPos.y - 16,
                 transform: "translate(-50%, -100%)",
                 zIndex: 100,
                 pointerEvents: "none",
               }}
             >
               <ProgressTooltip
-                keys={[segments[hoveredSegment]]}
+                subKey={segments[hoveredSegment]}
                 totalCost={totalCost}
+                budget={{
+                  cost: budgetCost,
+                  tokens: budgetTokens,
+                  requests: budgetRequests,
+                }}
               />
             </div>
           )}
-          {hoveredSegment === segments.length &&
-            hoveredSegment === segments.length && (
+          {hoveredSegment === segments.length && (
+            <div
+              style={{
+                position: "absolute",
+                left: Math.max(140, Math.min(tooltipPos.x, 500)),
+                top: tooltipPos.y - 16,
+                transform: "translate(-50%, -100%)",
+                zIndex: 100,
+                pointerEvents: "none",
+              }}
+            >
               <div
                 style={{
-                  position: "absolute",
-                  left: Math.min(tooltipPos.x, 600),
-                  top: tooltipPos.y - 12,
-                  transform: "translate(-50%, -100%)",
-                  zIndex: 100,
-                  pointerEvents: "none",
+                  background: "#1A1A1F",
+                  border: "1px solid #2A2A32",
+                  borderRadius: 10,
+                  padding: "12px 16px",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
                 }}
               >
-                <div
+                <p
                   style={{
-                    background: "#1A1A1F",
-                    border: "1px solid #2A2A32",
-                    borderRadius: 10,
-                    padding: "12px 16px",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                    margin: 0,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "#F0F0F4",
                   }}
                 >
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: "#F0F0F4",
-                    }}
-                  >
-                    Unused capacity
-                  </p>
-                  <p
-                    style={{
-                      margin: "4px 0 0",
-                      fontSize: 12,
-                      color: "#56565F",
-                    }}
-                  >
-                    {zeroKeys.length} key
-                    {zeroKeys.length !== 1 ? "s" : ""} with no usage yet
-                  </p>
-                </div>
+                  Unused capacity
+                </p>
+                <p
+                  style={{ margin: "4px 0 0", fontSize: 12, color: "#56565F" }}
+                >
+                  {zeroKeys.length} key{zeroKeys.length !== 1 ? "s" : ""} with
+                  no usage yet
+                </p>
               </div>
-            )}
+            </div>
+          )}
 
           {/* ── Legend ──────────────────────────────────────────────── */}
           <div
@@ -428,11 +536,7 @@ export function UpstreamKeyCard({
         </span>
         <span>
           <strong style={{ color: "#F0F0F4", fontWeight: 500 }}>
-            {totalTok >= 1_000_000
-              ? `${(totalTok / 1_000_000).toFixed(1)}M`
-              : totalTok >= 1_000
-                ? `${(totalTok / 1_000).toFixed(0)}k`
-                : totalTok}
+            {fmtT(totalTok)}
           </strong>{" "}
           tokens
         </span>
@@ -454,6 +558,109 @@ export function UpstreamKeyCard({
           live
         </span>
       </div>
+    </div>
+  );
+}
+
+function UsageLimitPill({
+  label,
+  used,
+  limit,
+  formatUsed,
+  formatLimit,
+  pct,
+}: {
+  label: string;
+  used: number;
+  limit: number | null;
+  formatUsed: (v: number) => string;
+  formatLimit: (v: number) => string;
+  pct: number | null;
+}) {
+  const barColor =
+    pct != null
+      ? pct > 90
+        ? "#EF4444"
+        : pct > 70
+          ? "#F59E0B"
+          : "#6366F1"
+      : "#6366F1";
+
+  return (
+    <div
+      style={{ background: "#18181C", borderRadius: 8, padding: "10px 14px" }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: 6,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            color: "#56565F",
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {label}
+        </span>
+        {pct != null && (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 500,
+              fontFamily: "monospace",
+              color: barColor,
+            }}
+          >
+            {pct.toFixed(1)}%
+          </span>
+        )}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 4,
+          marginBottom: 6,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 18,
+            fontWeight: 600,
+            fontFamily: "monospace",
+            color: "#F0F0F4",
+          }}
+        >
+          {formatUsed(used)}
+        </span>
+        {limit != null && (
+          <span style={{ fontSize: 12, color: "#56565F" }}>
+            of {formatLimit(limit)}
+          </span>
+        )}
+      </div>
+      {pct != null && (
+        <div style={{ height: 4, borderRadius: 2, background: "#1E1E24" }}>
+          <div
+            style={{
+              width: `${Math.min(pct, 100)}%`,
+              height: "100%",
+              borderRadius: 2,
+              background: barColor,
+              transition: "width 0.3s",
+            }}
+          />
+        </div>
+      )}
+      {limit == null && (
+        <span style={{ fontSize: 10, color: "#56565F" }}>Unlimited</span>
+      )}
     </div>
   );
 }

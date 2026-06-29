@@ -7,6 +7,7 @@ export type Workspace = {
   plan: string;
   anthropic_key_enc?: string | null;
   openai_key_enc?: string | null;
+  monthly_budget_usd?: number | null;
 };
 export type KeySummary = {
   sub_key_id: string;
