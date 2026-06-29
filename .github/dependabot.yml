@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Keep npm dependencies up to date
+  # Keep npm dependencies up to date (patch updates only)
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -14,8 +14,13 @@ updates:
     commit-message:
       prefix: "deps"
       include: scope
+    # Only allow patch-level updates to prevent breaking changes
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
 
-  # Keep GitHub Actions up to date
+  # Keep GitHub Actions up to date (patch updates only)
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -30,3 +35,8 @@ updates:
     commit-message:
       prefix: "ci"
       include: scope
+    # Only allow patch-level updates to prevent breaking changes
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
