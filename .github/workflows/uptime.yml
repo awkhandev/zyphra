@@ -2,8 +2,8 @@ name: Uptime Monitor
 
 "on":
   schedule:
-    # Every 5 minutes, every hour, every day
-    - cron: "*/5 * * * *"
+    # Every 30 minutes — saves Actions minutes and avoids inbox noise
+    - cron: "*/30 * * * *"
   workflow_dispatch: # Allow manual trigger
 
 jobs:
@@ -15,10 +15,10 @@ jobs:
       - name: Check health endpoint
         id: health
         run: |
-          echo "Checking https://zyphra.vercel.app/api/health ..."
+          echo "Checking https://teamkey-awkhan1122s-projects.vercel.app/api/health ..."
           HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
             --max-time 30 \
-            "https://zyphra.vercel.app/api/health")
+            "https://teamkey-awkhan1122s-projects.vercel.app/api/health")
 
           echo "HTTP Status: $HTTP_CODE"
 
@@ -60,7 +60,7 @@ jobs:
               body: `## Uptime Monitor Alert\n\n` +
                     `**Time:** ${new Date().toISOString()}\n` +
                     `**HTTP Status:** ${httpCode}\n` +
-                    `**URL:** https://zyphra.vercel.app/api/health\n\n` +
+                    `**URL:** https://teamkey-awkhan1122s-projects.vercel.app/api/health\n\n` +
                     `### What to check\n` +
                     `1. Is the Vercel deployment healthy?\n` +
                     `2. Is Supabase reachable?\n` +
